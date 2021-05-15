@@ -1,0 +1,55 @@
+{
+  "cniVersion": "0.3.1",
+  "name": "multi-bridge", 
+  "type": "multi-bridge", 
+  "etcd_host": "192.168.100.100",
+  "etcd_port": "2379",
+  "bridges": [
+    {
+      "bridge": "cni0", 
+      "isManagementNetwork": true,
+      "isDefaultGateway": true,
+      "forceAddress": false,
+      "ipMasq": true,
+      "hairpinMode": true,
+      "ipam": {
+        "type": "host-local",
+{% for node in nodeinfo %}
+{% if node.name == ansible_hostname %}
+        "subnet": "{{ node.podcidr[0] }}"
+{% endif %}
+{% endfor %}
+      }
+    },
+    {
+      "bridge": "cni1", 
+      "isGateway": true,
+      "forceAddress": false,
+      "ipMasq": true,
+      "hairpinMode": true,
+      "ipam": {
+        "type": "host-local",
+{% for node in nodeinfo %}
+{% if node.name == ansible_hostname %}
+        "subnet": "{{ node.podcidr[1] }}"
+{% endif %}
+{% endfor %}
+      }
+    },
+    {
+      "bridge": "cni2", 
+      "isGateway": true,
+      "forceAddress": false,
+      "ipMasq": true,
+      "hairpinMode": true,
+      "ipam": {
+        "type": "host-local",
+{% for node in nodeinfo %}
+{% if node.name == ansible_hostname %}
+        "subnet": "{{ node.podcidr[2] }}"
+{% endif %}
+{% endfor %}
+      }
+    }
+  ]
+}
