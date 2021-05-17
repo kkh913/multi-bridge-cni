@@ -1,0 +1,39 @@
+--- 
+- name: Deploy my-cni-demo using ansible 
+  hosts: all 
+  vars_files: 
+  - vars.yaml
+
+  tasks: 
+    - name: delete route for cni0
+      command: |
+          ip route del {{ item.podcidr[0] }} via {{ item.ip }} dev {{ interface }} 
+      ignore_errors: yes 
+      when: ansible_hostname != item.name
+      loop: "{{ nodeinfo }}"
+
+    - name: delete route for cni1
+      command: |
+          ip route del {{ item.podcidr[1] }} via {{ item.ip }} dev {{ interface }} 
+      ignore_errors: yes 
+      when: ansible_hostname != item.name
+      loop: "{{ nodeinfo }}"
+
+    - name: delete route for cni2 
+      command: |
+          ip route del {{ item.podcidr[2] }} via {{ item.ip }} dev {{ interface }} 
+      ignore_errors: yes 
+      when: ansible_hostname != item.name
+      loop: "{{ nodeinfo }}"
+
+    - name: remove configuration file 
+      file: 
+        src: conf/10-multi-bridge-cni.conf.j2 
+        path: /etc/cni/net.d/10-multi-bridge-cni.conf 
+        state: absent
+
+    - name: remove binary file 
+      file:
+        path: /opt/cni/bin/multi-bridge
+        state: absent
+

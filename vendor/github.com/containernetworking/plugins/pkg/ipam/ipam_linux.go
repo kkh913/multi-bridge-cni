@@ -32,7 +32,7 @@ const (
 
 // ConfigureIface takes the result of IPAM plugin and
 // applies to the ifName interface
-func ConfigureIface(ifName string, res *current.Result) error {
+func ConfigureIface(ifName string, res *current.Result, table int, priority int) error {
 	if len(res.Interfaces) == 0 {
 		return fmt.Errorf("no interfaces to configure")
 	}
@@ -87,6 +87,17 @@ func ConfigureIface(ifName string, res *current.Result) error {
 			return fmt.Errorf("failed to add IP addr %v to %q: %v", ipc, ifName, err)
 		}
 
+		if table != 0 {
+			r := netlink.NewRule()
+			r.Src = &net.IPNet{IP: ipc.Address.IP, Mask: net.CIDRMask(32, 32)}
+			r.Table = table
+			r.Priority = priority
+
+			if err = netlink.RuleAdd(r); err != nil {
+				return fmt.Errorf("failed to add rule `from %v table %v priority %v': %v", r.Src, r.Table, r.Priority, err)
+			}
+		}
+
 		gwIsV4 := ipc.Gateway.To4() != nil
 		if gwIsV4 && v4gw == nil {
 			v4gw = ipc.Gateway
@@ -109,12 +120,21 @@ func ConfigureIface(ifName string, res *current.Result) error {
 				gw = v6gw
 			}
 		}
-		if err = ip.AddRoute(&r.Dst, gw, link); err != nil {
+
+		err = netlink.RouteAdd(&netlink.Route{
+			LinkIndex: link.Attrs().Index,
+			Dst:       &r.Dst,
+			Gw:        gw,
+			Table:     table,
+		})
+
+		if err != nil {
 			// we skip over duplicate routes as we assume the first one wins
 			if !os.IsExist(err) {
 				return fmt.Errorf("failed to add route '%v via %v dev %v': %v", r.Dst, gw, ifName, err)
 			}
 		}
+
 	}
 
 	return nil
